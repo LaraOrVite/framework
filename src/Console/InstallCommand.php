@@ -23,7 +23,6 @@ class InstallCommand extends Command
             }
         }
 
-        $this->info('📝 Configuring custom API routes...');
         $stubApiPath = __DIR__.'/../../stubs/api.php';
 
         if (File::exists($stubApiPath)) {
