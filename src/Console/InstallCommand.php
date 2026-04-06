@@ -52,7 +52,7 @@ class InstallCommand extends Command
 
         $basePath = base_path();
         $resourcesPath = escapeshellarg($basePath . '/resources');
-        $command = "cd {$resourcesPath} && npm create vite@latest {$folderName} -- --template {$framework} -y";
+        $command = "cd {$resourcesPath} && npm create vite@latest {$folderName} -y -- --template {$framework}";
 
         if (app()->environment() !== 'testing') {
             shell_exec($command);
