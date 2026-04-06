@@ -9,152 +9,116 @@ use Illuminate\Support\Facades\Process;
 class InstallCommand extends Command
 {
     protected $signature = 'frontend:setup {name? : The name of the frontend directory}';
-    protected $description = 'Create a separate Vite frontend, setup Laravel API and configure Vite dependencies';
+    protected $description = 'Create a standalone Vite frontend with auto-configured plugins';
 
     public function handle()
     {
-        $this->info('🚀 Starting LaraOrVite Setup...');
+        $this->info('Starting LaraOrVite Setup...');
 
         $folderName = $this->argument('name') ?: 'frontend';
         $frontendPath = resource_path($folderName);
 
-        // 1. API Setup (Laravel 11+ compatibility)
-        if ($this->laravel->version() >= '11.0') {
-            if (!File::exists(base_path('routes/api.php'))) {
-                $this->info('📦 Installing Laravel API dependencies...');
-                $this->call('install:api');
-            }
-        }
-
-        // 2. Custom API Stub integration
-        $stubApiPath = __DIR__.'/../../stubs/api.php';
-        if (File::exists($stubApiPath)) {
-            File::copy($stubApiPath, base_path('routes/api.php'));
-            $this->line(' ✅ API routes configured.');
-        }
-
-        // 3. Framework Selection
+        // 1. Framework Selection
         $framework = $this->choice(
-            'Which frontend framework do you want to use?',
-            ['lit', 'lit-ts', 'preact', 'preact-ts', 'react', 'react-ts', 'svelte', 'svelte-ts', 'vanilla', 'vanilla-ts', 'vue', 'vue-ts'],
-            4
+            'Which frontend framework?',
+            ['react', 'react-ts', 'vue', 'vue-ts', 'svelte', 'svelte-ts', 'vanilla', 'vanilla-ts'],
+            0
         );
 
-        // 4. Addon Selection
+        // 2. Addon Selection
         $isReact = str_contains($framework, 'react');
         $isVue = str_contains($framework, 'vue');
 
         $options = ['None', 'Tailwind CSS', 'Axios', 'Lucide Icons', 'TanStack Query'];
-        if ($isReact) {
-            $options = array_merge($options, ['Redux Toolkit (with React-Redux)', 'Zustand', 'React Router']);
-        } elseif ($isVue) {
-            $options = array_merge($options, ['Pinia', 'Vue Router']);
-        }
+        if ($isReact) $options = array_merge($options, ['Redux Toolkit', 'React Router']);
+        if ($isVue) $options = array_merge($options, ['Pinia', 'Vue Router']);
 
-        $addons = $this->choice(
-            'Select additional packages to install (comma-separated numbers)',
-            $options,
-            0,
-            null,
-            true
-        );
+        $addons = $this->choice('Select addons (comma-separated)', $options, 0, null, true);
 
-        // 5. Directory Check & Cleanup
+        // 3. Directory Cleanup
         if (File::exists($frontendPath)) {
-            if ($this->confirm("The 'resources/{$folderName}' directory already exists. Overwrite it?", true)) {
-                File::deleteDirectory($frontendPath);
-            } else {
-                $this->error('❌ Setup aborted.');
-                return;
-            }
+            if (!$this->confirm("Overwrite 'resources/{$folderName}'?", true)) return;
+            File::deleteDirectory($frontendPath);
         }
 
-        // 6. Execution
-        if (app()->environment() !== 'testing') {
-            $this->info("🛠 Creating fresh Vite ($framework) project...");
-
-            // Step A: Create Vite Project
-            $createVite = Process::path(resource_path())
-                ->timeout(300)
-                ->run("npm create vite@latest {$folderName} -- --template {$framework} --yes");
-
-            if (!$createVite->successful()) {
-                $this->error('❌ Vite creation failed!');
-                $this->line($createVite->errorOutput());
-                return;
-            }
-
-            // Step B: NPM Install Core & Laravel Vite Plugin
-            $this->info("📦 Installing base dependencies & Laravel Vite Plugin...");
-
-            Process::path($frontendPath)->timeout(600)->run("npm install laravel-vite-plugin --save-dev");
-            Process::path($frontendPath)->timeout(600)->run("npm install");
-
-            // Step C: Install Addons
-            if (!in_array('None', $addons)) {
-                $packages = [];
-                if (in_array('Tailwind CSS', $addons)) $packages[] = 'tailwindcss postcss autoprefixer';
-                if (in_array('Axios', $addons)) $packages[] = 'axios';
-                if (in_array('Lucide Icons', $addons)) $packages[] = $isReact ? 'lucide-react' : ($isVue ? 'lucide-vue-next' : 'lucide');
-                if (in_array('TanStack Query', $addons)) $packages[] = $isReact ? '@tanstack/react-query' : '@tanstack/vue-query';
-                if (in_array('Redux Toolkit (with React-Redux)', $addons)) $packages[] = '@reduxjs/toolkit react-redux';
-                if (in_array('Zustand', $addons)) $packages[] = 'zustand';
-                if (in_array('Pinia', $addons)) $packages[] = 'pinia';
-                if (in_array('React Router', $addons)) $packages[] = 'react-router-dom';
-                if (in_array('Vue Router', $addons)) $packages[] = 'vue-router@4';
-
-                if (!empty($packages)) {
-                    $this->info("➕ Installing selected addons...");
-                    $pkgString = implode(' ', $packages);
-                    Process::path($frontendPath)->timeout(600)->run("npm install $pkgString");
-
-                    if (in_array('Tailwind CSS', $addons)) {
-                        Process::path($frontendPath)->run("npx tailwindcss init -p");
-                    }
-                }
-            }
-
-            // Step D: Configure Vite for Laravel (Optional: Update vite.config.js)
-            $this->info("⚙️ Configuring vite.config.js for Laravel...");
-            $this->updateViteConfig($frontendPath, $isReact, $isVue);
-
-        } else {
-            File::makeDirectory($frontendPath, 0755, true, true);
+        if (app()->environment() === 'testing') {
+            File::makeDirectory($frontendPath, 0755, true);
+            return;
         }
 
-        $this->info('🎉 LaraOrVite Setup Successfully Completed!');
-        $this->line("\n<info>Next steps:</info>");
-        $this->line(" 1. <comment>cd resources/{$folderName}</comment>");
-        $this->line(" 2. <comment>npm run dev</comment>");
+        // 4. Create Vite Project
+        $this->info("🛠 Creating Vite project...");
+        Process::path(resource_path())->run("npm create vite@latest {$folderName} -- --template {$framework} --yes");
+
+        // 5. Build Dependencies List
+        $packages = ['axios'];
+        if (in_array('Tailwind CSS', $addons)) $packages[] = '@tailwindcss/vite tailwindcss';
+        if (in_array('Lucide Icons', $addons)) $packages[] = $isReact ? 'lucide-react' : 'lucide-vue-next';
+        if (in_array('TanStack Query', $addons)) $packages[] = $isReact ? '@tanstack/react-query' : '@tanstack/vue-query';
+        if (in_array('Redux Toolkit', $addons)) $packages[] = '@reduxjs/toolkit react-redux';
+        if (in_array('React Router', $addons)) $packages[] = 'react-router';
+        if (in_array('Pinia', $addons)) $packages[] = 'pinia';
+        if (in_array('Vue Router', $addons)) $packages[] = 'vue-router@4';
+
+        $this->info("📦 Installing dependencies...");
+        Process::path($frontendPath)->timeout(600)->run("npm install " . implode(' ', $packages));
+
+        // 6. Generate Dynamic Vite Config
+        $this->info("⚙️ Configuring Vite Plugins...");
+        $this->generateViteConfig($frontendPath, $framework, $addons);
+
+        $this->info('🎉 Setup Completed!');
+        $this->line("\nRun: <comment>cd resources/{$folderName} && npm run dev</comment>");
     }
 
-    /**
-     * Update vite.config.js to include Laravel integration.
-     */
-    protected function updateViteConfig($path, $isReact, $isVue)
+    protected function generateViteConfig($path, $framework, $addons)
     {
-        $viteConfigPath = "{$path}/vite.config.js";
-        if (File::exists("{$path}/vite.config.ts")) $viteConfigPath = "{$path}/vite.config.ts";
+        $isReact = str_contains($framework, 'react');
+        $isVue = str_contains($framework, 'vue');
+        $isSvelte = str_contains($framework, 'svelte');
+        $hasTailwind = in_array('Tailwind CSS', $addons);
 
-        $plugin = $isReact ? "react()" : ($isVue ? "vue()" : "");
-        $import = $isReact ? "import react from '@vitejs/plugin-react';" : ($isVue ? "import vue from '@vitejs/plugin-vue';" : "");
+        $imports = ["import { defineConfig } from 'vite'"];
+        $plugins = [];
 
-        $configContent = <<<EOD
-        import { defineConfig } from 'vite';
-        import laravel from 'laravel-vite-plugin';
-        {$import}
+        // Framework Plugins
+        if ($isReact) {
+            $imports[] = "import react from '@vitejs/plugin-react'";
+            $plugins[] = "react()";
+        } elseif ($isVue) {
+            $imports[] = "import vue from '@vitejs/plugin-vue'";
+            $plugins[] = "vue()";
+        } elseif ($isSvelte) {
+            $imports[] = "import { svelte } from '@sveltejs/vite-plugin-svelte'";
+            $plugins[] = "svelte()";
+        }
 
-        export default defineConfig({
-            plugins: [
-                laravel({
-                    input: ['src/main.jsx', 'src/style.css'], // Adjust based on framework
-                    refresh: true,
-                }),
-                {$plugin}
-            ],
-        });
-        EOD;
+        // Tailwind CSS v4 Plugin (Vite native)
+        if ($hasTailwind) {
+            $imports[] = "import tailwindcss from '@tailwindcss/vite'";
+            $plugins[] = "tailwindcss()";
+        }
 
-        File::put($viteConfigPath, $configContent);
+        $importString = implode(";\n", $imports) . ";";
+        $pluginString = implode(",\n    ", $plugins);
+
+        $content = "{$importString}
+
+export default defineConfig({
+  plugins: [
+    {$pluginString}
+  ],
+})";
+
+        $ext = File::exists("{$path}/vite.config.ts") ? 'ts' : 'js';
+        File::put("{$path}/vite.config.{$ext}", $content);
+
+        // Tailwind CSS File Setup
+        if ($hasTailwind) {
+            $cssPath = File::exists("{$path}/src/style.css") ? "{$path}/src/style.css" : "{$path}/src/index.css";
+            if (File::exists($cssPath)) {
+                File::put($cssPath, "@import \"tailwindcss\";\n" . File::get($cssPath));
+            }
+        }
     }
 }
