@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Process;
 class InstallCommand extends Command
 {
     protected $signature = 'frontend:setup {name? : The name of the frontend directory}';
-    protected $description = 'Create a separate Vite frontend with a custom name, setup Laravel API and install popular addons';
+    protected $description = 'Create a separate Vite frontend, setup Laravel API and configure Vite dependencies';
 
     public function handle()
     {
@@ -40,7 +40,7 @@ class InstallCommand extends Command
             4
         );
 
-        // 4. Addon Selection (Based on Framework)
+        // 4. Addon Selection
         $isReact = str_contains($framework, 'react');
         $isVue = str_contains($framework, 'vue');
 
@@ -84,8 +84,10 @@ class InstallCommand extends Command
                 return;
             }
 
-            // Step B: Base NPM Install
-            $this->info("📦 Installing base dependencies...");
+            // Step B: NPM Install Core & Laravel Vite Plugin
+            $this->info("📦 Installing base dependencies & Laravel Vite Plugin...");
+
+            Process::path($frontendPath)->timeout(600)->run("npm install laravel-vite-plugin --save-dev");
             Process::path($frontendPath)->timeout(600)->run("npm install");
 
             // Step C: Install Addons
@@ -98,7 +100,7 @@ class InstallCommand extends Command
                 if (in_array('Redux Toolkit (with React-Redux)', $addons)) $packages[] = '@reduxjs/toolkit react-redux';
                 if (in_array('Zustand', $addons)) $packages[] = 'zustand';
                 if (in_array('Pinia', $addons)) $packages[] = 'pinia';
-                if (in_array('React Router', $addons)) $packages[] = 'react-router';
+                if (in_array('React Router', $addons)) $packages[] = 'react-router-dom';
                 if (in_array('Vue Router', $addons)) $packages[] = 'vue-router@4';
 
                 if (!empty($packages)) {
@@ -111,6 +113,11 @@ class InstallCommand extends Command
                     }
                 }
             }
+
+            // Step D: Configure Vite for Laravel (Optional: Update vite.config.js)
+            $this->info("⚙️ Configuring vite.config.js for Laravel...");
+            $this->updateViteConfig($frontendPath, $isReact, $isVue);
+
         } else {
             File::makeDirectory($frontendPath, 0755, true, true);
         }
@@ -119,5 +126,35 @@ class InstallCommand extends Command
         $this->line("\n<info>Next steps:</info>");
         $this->line(" 1. <comment>cd resources/{$folderName}</comment>");
         $this->line(" 2. <comment>npm run dev</comment>");
+    }
+
+    /**
+     * Update vite.config.js to include Laravel integration.
+     */
+    protected function updateViteConfig($path, $isReact, $isVue)
+    {
+        $viteConfigPath = "{$path}/vite.config.js";
+        if (File::exists("{$path}/vite.config.ts")) $viteConfigPath = "{$path}/vite.config.ts";
+
+        $plugin = $isReact ? "react()" : ($isVue ? "vue()" : "");
+        $import = $isReact ? "import react from '@vitejs/plugin-react';" : ($isVue ? "import vue from '@vitejs/plugin-vue';" : "");
+
+        $configContent = <<<EOD
+        import { defineConfig } from 'vite';
+        import laravel from 'laravel-vite-plugin';
+        {$import}
+
+        export default defineConfig({
+            plugins: [
+                laravel({
+                    input: ['src/main.jsx', 'src/style.css'], // Adjust based on framework
+                    refresh: true,
+                }),
+                {$plugin}
+            ],
+        });
+        EOD;
+
+        File::put($viteConfigPath, $configContent);
     }
 }
