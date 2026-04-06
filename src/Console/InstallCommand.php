@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Process;
 class InstallCommand extends Command
 {
     protected $signature = 'frontend:setup {name? : The name of the frontend directory}';
-    protected $description = 'Create a separate Vite frontend with a custom name and setup Laravel API';
+    protected $description = 'Create a separate Vite frontend with a custom name, setup Laravel API and install popular addons';
 
     public function handle()
     {
@@ -36,18 +36,30 @@ class InstallCommand extends Command
         // 3. Framework Selection
         $framework = $this->choice(
             'Which frontend framework do you want to use?',
-            [
-                'lit', 'lit-ts',
-                'preact', 'preact-ts',
-                'react', 'react-ts',
-                'svelte', 'svelte-ts',
-                'vanilla', 'vanilla-ts',
-                'vue', 'vue-ts'
-            ],
-            4 // Default to 'react'
+            ['lit', 'lit-ts', 'preact', 'preact-ts', 'react', 'react-ts', 'svelte', 'svelte-ts', 'vanilla', 'vanilla-ts', 'vue', 'vue-ts'],
+            4
         );
 
-        // 4. Directory Check & Cleanup
+        // 4. Addon Selection (Based on Framework)
+        $isReact = str_contains($framework, 'react');
+        $isVue = str_contains($framework, 'vue');
+
+        $options = ['None', 'Tailwind CSS', 'Axios', 'Lucide Icons', 'TanStack Query'];
+        if ($isReact) {
+            $options = array_merge($options, ['Redux Toolkit (with React-Redux)', 'Zustand', 'React Router']);
+        } elseif ($isVue) {
+            $options = array_merge($options, ['Pinia', 'Vue Router']);
+        }
+
+        $addons = $this->choice(
+            'Select additional packages to install (comma-separated numbers)',
+            $options,
+            0,
+            null,
+            true
+        );
+
+        // 5. Directory Check & Cleanup
         if (File::exists($frontendPath)) {
             if ($this->confirm("The 'resources/{$folderName}' directory already exists. Overwrite it?", true)) {
                 File::deleteDirectory($frontendPath);
@@ -57,10 +69,9 @@ class InstallCommand extends Command
             }
         }
 
-        // 5. Execution (Skip heavy tasks during testing)
+        // 6. Execution
         if (app()->environment() !== 'testing') {
-
-            $this->info("🛠 Creating fresh Vite ($framework) project as '{$folderName}'...");
+            $this->info("🛠 Creating fresh Vite ($framework) project...");
 
             // Step A: Create Vite Project
             $createVite = Process::path(resource_path())
@@ -73,30 +84,39 @@ class InstallCommand extends Command
                 return;
             }
 
-            $this->info(" ✅ Vite project '{$folderName}' created.");
+            // Step B: Base NPM Install
+            $this->info("📦 Installing base dependencies...");
+            Process::path($frontendPath)->timeout(600)->run("npm install");
 
-            // Step B: NPM Install
-            $this->info("📦 Installing NPM dependencies... (This may take a minute)");
+            // Step C: Install Addons
+            if (!in_array('None', $addons)) {
+                $packages = [];
+                if (in_array('Tailwind CSS', $addons)) $packages[] = 'tailwindcss postcss autoprefixer';
+                if (in_array('Axios', $addons)) $packages[] = 'axios';
+                if (in_array('Lucide Icons', $addons)) $packages[] = $isReact ? 'lucide-react' : ($isVue ? 'lucide-vue-next' : 'lucide');
+                if (in_array('TanStack Query', $addons)) $packages[] = $isReact ? '@tanstack/react-query' : '@tanstack/vue-query';
+                if (in_array('Redux Toolkit (with React-Redux)', $addons)) $packages[] = '@reduxjs/toolkit react-redux';
+                if (in_array('Zustand', $addons)) $packages[] = 'zustand';
+                if (in_array('Pinia', $addons)) $packages[] = 'pinia';
+                if (in_array('React Router', $addons)) $packages[] = 'react-router';
+                if (in_array('Vue Router', $addons)) $packages[] = 'vue-router@4';
 
-            $npmInstall = Process::path($frontendPath)
-                ->timeout(600) // 10 minutes for slow connections
-                ->run("npm install");
+                if (!empty($packages)) {
+                    $this->info("➕ Installing selected addons...");
+                    $pkgString = implode(' ', $packages);
+                    Process::path($frontendPath)->timeout(600)->run("npm install $pkgString");
 
-            if ($npmInstall->successful()) {
-                $this->info(" ✅ NPM dependencies installed successfully.");
-            } else {
-                $this->warn(" ⚠️ Vite project created, but 'npm install' failed. You may need to run it manually.");
-                $this->line($npmInstall->errorOutput());
+                    if (in_array('Tailwind CSS', $addons)) {
+                        Process::path($frontendPath)->run("npx tailwindcss init -p");
+                    }
+                }
             }
-
         } else {
-            // Testing වලදී folder එකක් පමණක් සාදා skip කරයි
             File::makeDirectory($frontendPath, 0755, true, true);
         }
 
         $this->info('🎉 LaraOrVite Setup Successfully Completed!');
-        $this->line("");
-        $this->line("<info>To start development:</info>");
+        $this->line("\n<info>Next steps:</info>");
         $this->line(" 1. <comment>cd resources/{$folderName}</comment>");
         $this->line(" 2. <comment>npm run dev</comment>");
     }
