@@ -9,14 +9,28 @@ use Illuminate\Support\Facades\Process;
 class InstallCommand extends Command
 {
     protected $signature = 'frontend:setup {name? : The name of the frontend directory}';
-    protected $description = 'Create a standalone Vite frontend with auto-configured plugins';
+    protected $description = 'Create a standalone Vite frontend with auto-configured plugins and Laravel API';
 
     public function handle()
     {
-        $this->info('Starting LaraOrVite Setup...');
+        $this->info('🚀 Starting LaraOrVite Setup...');
 
         $folderName = $this->argument('name') ?: 'frontend';
         $frontendPath = resource_path($folderName);
+
+        if ($this->laravel->version() >= '11.0') {
+            if (!File::exists(base_path('routes/api.php'))) {
+                $this->info('📦 Installing Laravel API dependencies...');
+                $this->call('install:api');
+            }
+        }
+
+        $stubApiPath = __DIR__.'/../../stubs/api.php';
+        if (File::exists($stubApiPath)) {
+            File::copy($stubApiPath, base_path('routes/api.php'));
+            $this->line(' ✅ API routes configured.');
+        }
+        // -------------------------------
 
         // 1. Framework Selection
         $framework = $this->choice(
@@ -56,7 +70,7 @@ class InstallCommand extends Command
         if (in_array('Lucide Icons', $addons)) $packages[] = $isReact ? 'lucide-react' : 'lucide-vue-next';
         if (in_array('TanStack Query', $addons)) $packages[] = $isReact ? '@tanstack/react-query' : '@tanstack/vue-query';
         if (in_array('Redux Toolkit', $addons)) $packages[] = '@reduxjs/toolkit react-redux';
-        if (in_array('React Router', $addons)) $packages[] = 'react-router';
+        if (in_array('React Router', $addons)) $packages[] = 'react-router-dom';
         if (in_array('Pinia', $addons)) $packages[] = 'pinia';
         if (in_array('Vue Router', $addons)) $packages[] = 'vue-router@4';
 
