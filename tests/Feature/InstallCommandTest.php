@@ -7,6 +7,15 @@ use LaraOrVite\Framework\Tests\TestCase;
 
 class InstallCommandTest extends TestCase
 {
+    protected array $frameworks = [
+        'lit', 'lit-ts',
+        'preact', 'preact-ts',
+        'react', 'react-ts',
+        'svelte', 'svelte-ts',
+        'vanilla', 'vanilla-ts',
+        'vue', 'vue-ts'
+    ];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -33,9 +42,7 @@ class InstallCommandTest extends TestCase
         File::put(base_path('routes/api.php'), '<?php');
 
         $this->artisan('frontend:setup')
-            ->expectsChoice('Which frontend framework do you want to use?', 'react', [
-                'react', 'vue', 'svelte', 'vanilla', 'react-ts', 'vue-ts'
-            ])
+            ->expectsChoice('Which frontend framework do you want to use?', 'react', $this->frameworks)
             ->assertExitCode(0);
 
         $this->assertTrue(File::exists(base_path('routes/api.php')));
@@ -48,9 +55,7 @@ class InstallCommandTest extends TestCase
         $path = resource_path($folderName);
 
         $this->artisan("frontend:setup {$folderName}")
-            ->expectsChoice('Which frontend framework do you want to use?', 'react', [
-                'react', 'vue', 'svelte', 'vanilla', 'react-ts', 'vue-ts'
-            ])
+            ->expectsChoice('Which frontend framework do you want to use?', 'react', $this->frameworks)
             ->assertExitCode(0);
 
         $this->assertTrue(File::exists($path));
