@@ -7,6 +7,19 @@
 **LaraOrVite** is a lightweight Laravel package designed to scaffold a modern frontend environment with **Vite** and a separate **API** architecture in seconds. It bridges the gap between Laravel's backend power and modern frontend frameworks like React, Vue, and Svelte.
 
 ---
+### 💻 Compatibility & Stack
+![PHP](https://img.shields.io/badge/PHP-8.4%2B-777BB4?style=flat-square&logo=php)
+![Laravel](https://img.shields.io/badge/Laravel-10%2F11%2F12%2F13-FF2D20?style=flat-square&logo=laravel)
+![Vite](https://img.shields.io/badge/Vite-9.0%2B-646CFF?style=flat-square&logo=vite)
+
+**Supported Frontend Frameworks:**
+![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react)
+![Vue.js](https://img.shields.io/badge/Vue.js-35495E?style=flat-square&logo=vuedotjs)
+![Svelte](https://img.shields.io/badge/Svelte-FF3E00?style=flat-square&logo=svelte)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat-square&logo=typescript)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript)
+
+---
 
 ## ✨ Features
 
