@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/LaraOrVite/framework/actions/workflows/tests.yml/badge.svg)](https://github.com/LaraOrVite/framework/actions)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/laraorvite/framework.svg?style=flat-square)](https://packagist.org/packages/laraorvite/framework)
-[![Total Downloads](https://img.shields.io/packagist/dt/laraorvite/framework?style=flat-square&color=blue)](https://packagist.org/packages/laraorvite/framework)
+[![Total Downloads](https://img.shields.io/packagist/dt/laraorvite/framework?v=1&style=flat-square&color=blue)](https://packagist.org/packages/laraorvite/framework)
 
 **LaraOrVite** is a lightweight Laravel package designed to scaffold a modern frontend environment with **Vite** and a separate **API** architecture in seconds. It bridges the gap between Laravel's backend power and modern frontend frameworks like React, Vue, and Svelte.
 
