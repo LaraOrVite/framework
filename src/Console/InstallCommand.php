@@ -33,18 +33,18 @@ class InstallCommand extends Command
             $this->line(' ✅ API routes configured.');
         }
 
-        // 3. Choice of Frameworks (Including JS & TS)
+        // 3. Framework Selection
         $framework = $this->choice(
             'Which frontend framework do you want to use?',
             [
-                'vanilla', 'vanilla-ts',
-                'vue', 'vue-ts',
-                'react', 'react-ts',
-                'preact', 'preact-ts',
                 'lit', 'lit-ts',
-                'svelte', 'svelte-ts'
+                'preact', 'preact-ts',
+                'react', 'react-ts',
+                'svelte', 'svelte-ts',
+                'vanilla', 'vanilla-ts',
+                'vue', 'vue-ts'
             ],
-            0
+            4 // Default to 'react'
         );
 
         // 4. Directory Check & Cleanup
@@ -57,30 +57,47 @@ class InstallCommand extends Command
             }
         }
 
-        $this->info("🛠 Creating fresh Vite ($framework) project as '{$folderName}'...");
-
-        // 5. Run NPM Create Vite command using Process Facade
+        // 5. Execution (Skip heavy tasks during testing)
         if (app()->environment() !== 'testing') {
-            // මෙහිදී Process::path() භාවිතා කරන්නේ resources folder එක ඇතුළත command එක run කිරීමටයි
-            $process = Process::path(resource_path())
-                ->timeout(300) // සමහර විට NPM package install වෙන්න වෙලාව යන නිසා විනාඩි 5ක් ලබා දී ඇත
+
+            $this->info("🛠 Creating fresh Vite ($framework) project as '{$folderName}'...");
+
+            // Step A: Create Vite Project
+            $createVite = Process::path(resource_path())
+                ->timeout(300)
                 ->run("npm create vite@latest {$folderName} -- --template {$framework} --yes");
 
-            if ($process->successful()) {
-                $this->info(" ✅ Vite project '{$folderName}' created successfully.");
-                $this->line("<info>Next steps:</info>");
-                $this->line(" 1. cd resources/{$folderName}");
-                $this->line(" 2. npm install");
-                $this->line(" 3. npm run dev");
-            } else {
+            if (!$createVite->successful()) {
                 $this->error('❌ Vite creation failed!');
-                $this->line($process->errorOutput());
+                $this->line($createVite->errorOutput());
                 return;
             }
+
+            $this->info(" ✅ Vite project '{$folderName}' created.");
+
+            // Step B: NPM Install
+            $this->info("📦 Installing NPM dependencies... (This may take a minute)");
+
+            $npmInstall = Process::path($frontendPath)
+                ->timeout(600) // 10 minutes for slow connections
+                ->run("npm install");
+
+            if ($npmInstall->successful()) {
+                $this->info(" ✅ NPM dependencies installed successfully.");
+            } else {
+                $this->warn(" ⚠️ Vite project created, but 'npm install' failed. You may need to run it manually.");
+                $this->line($npmInstall->errorOutput());
+            }
+
         } else {
+            // Testing වලදී folder එකක් පමණක් සාදා skip කරයි
             File::makeDirectory($frontendPath, 0755, true, true);
         }
 
         $this->info('🎉 LaraOrVite Setup Successfully Completed!');
+        $this->line("");
+        $this->line("<info>To start development:</info>");
+        $this->line(" 1. <comment>cd resources/{$folderName}</comment>");
+        $this->line(" 2. <comment>npm run dev</comment>");
     }
 }
