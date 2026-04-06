@@ -7,13 +7,9 @@ use LaraOrVite\Framework\Tests\TestCase;
 
 class InstallCommandTest extends TestCase
 {
+    // ඔබගේ Command එකේ ඇති අනුපිළිවෙළටම අලුත් ලැයිස්තුව
     protected array $frameworks = [
-        'lit', 'lit-ts',
-        'preact', 'preact-ts',
-        'react', 'react-ts',
-        'svelte', 'svelte-ts',
-        'vanilla', 'vanilla-ts',
-        'vue', 'vue-ts'
+        'react', 'react-ts', 'vue', 'vue-ts', 'svelte', 'svelte-ts', 'vanilla', 'vanilla-ts'
     ];
 
     protected function setUp(): void
@@ -42,11 +38,9 @@ class InstallCommandTest extends TestCase
         File::put(base_path('routes/api.php'), '<?php');
 
         $this->artisan('frontend:setup')
-            ->expectsChoice('Which frontend framework do you want to use?', 'react', $this->frameworks)
-
-            ->expectsChoice('Select additional packages to install (comma-separated numbers)', 'None', [
-                'None', 'Tailwind CSS', 'Axios', 'Lucide Icons', 'TanStack Query',
-                'Redux Toolkit (with React-Redux)', 'Zustand', 'React Router'
+            ->expectsChoice('Which frontend framework?', 'react', $this->frameworks)
+            ->expectsChoice('Select addons (comma-separated)', 'None', [
+                'None', 'Tailwind CSS', 'Axios', 'Lucide Icons', 'TanStack Query', 'Redux Toolkit', 'React Router'
             ])
             ->assertExitCode(0);
 
@@ -60,11 +54,9 @@ class InstallCommandTest extends TestCase
         $path = resource_path($folderName);
 
         $this->artisan("frontend:setup {$folderName}")
-            ->expectsChoice('Which frontend framework do you want to use?', 'react', $this->frameworks)
-
-            ->expectsChoice('Select additional packages to install (comma-separated numbers)', 'None', [
-                'None', 'Tailwind CSS', 'Axios', 'Lucide Icons', 'TanStack Query',
-                'Redux Toolkit (with React-Redux)', 'Zustand', 'React Router'
+            ->expectsChoice('Which frontend framework?', 'react', $this->frameworks)
+            ->expectsChoice('Select addons (comma-separated)', 'None', [
+                'None', 'Tailwind CSS', 'Axios', 'Lucide Icons', 'TanStack Query', 'Redux Toolkit', 'React Router'
             ])
             ->assertExitCode(0);
 
