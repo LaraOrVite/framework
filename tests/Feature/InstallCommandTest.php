@@ -43,6 +43,11 @@ class InstallCommandTest extends TestCase
 
         $this->artisan('frontend:setup')
             ->expectsChoice('Which frontend framework do you want to use?', 'react', $this->frameworks)
+
+            ->expectsChoice('Select additional packages to install (comma-separated numbers)', 'None', [
+                'None', 'Tailwind CSS', 'Axios', 'Lucide Icons', 'TanStack Query',
+                'Redux Toolkit (with React-Redux)', 'Zustand', 'React Router'
+            ])
             ->assertExitCode(0);
 
         $this->assertTrue(File::exists(base_path('routes/api.php')));
@@ -56,6 +61,11 @@ class InstallCommandTest extends TestCase
 
         $this->artisan("frontend:setup {$folderName}")
             ->expectsChoice('Which frontend framework do you want to use?', 'react', $this->frameworks)
+
+            ->expectsChoice('Select additional packages to install (comma-separated numbers)', 'None', [
+                'None', 'Tailwind CSS', 'Axios', 'Lucide Icons', 'TanStack Query',
+                'Redux Toolkit (with React-Redux)', 'Zustand', 'React Router'
+            ])
             ->assertExitCode(0);
 
         $this->assertTrue(File::exists($path));
