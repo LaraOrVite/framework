@@ -28,28 +28,30 @@ class InstallCommand extends Command
         $stubApiPath = __DIR__.'/../../stubs/api.php';
         if (File::exists($stubApiPath)) {
             File::copy($stubApiPath, base_path('routes/api.php'));
-            $this->line(' ✅ API routes configured.');
+            $this->line('');
+            $this->line('API routes configured.');
         }
-        // -------------------------------
 
-        // 1. Framework Selection
         $framework = $this->choice(
             'Which frontend framework?',
-            ['react', 'react-ts', 'vue', 'vue-ts', 'svelte', 'svelte-ts', 'vanilla', 'vanilla-ts'],
+            ['react', 'react-ts', 'vue', 'vue-ts', 'react-native', 'svelte', 'svelte-ts', 'vanilla', 'vanilla-ts'],
             0
         );
 
-        // 2. Addon Selection
-        $isReact = str_contains($framework, 'react');
+        $isReactNative = ($framework === 'react-native');
+        $isReact = str_contains($framework, 'react') && !$isReactNative;
         $isVue = str_contains($framework, 'vue');
 
-        $options = ['None', 'Tailwind CSS', 'Axios', 'Lucide Icons', 'TanStack Query'];
-        if ($isReact) $options = array_merge($options, ['Redux Toolkit', 'React Router']);
-        if ($isVue) $options = array_merge($options, ['Pinia', 'Vue Router']);
+        if ($isReactNative) {
+            $addons = ['none'];
+        } else {
+            $options = ['None', 'Tailwind CSS', 'Axios', 'Lucide Icons', 'TanStack Query'];
+            if ($isReact) $options = array_merge($options, ['Redux Toolkit', 'React Router']);
+            if ($isVue) $options = array_merge($options, ['Pinia', 'Vue Router']);
 
-        $addons = $this->choice('Select addons (comma-separated)', $options, 0, null, true);
+            $addons = $this->choice('Select addons (comma-separated)', $options, 0, null, true);
+        }
 
-        // 3. Directory Cleanup
         if (File::exists($frontendPath)) {
             if (!$this->confirm("Overwrite 'resources/{$folderName}'?", true)) return;
             File::deleteDirectory($frontendPath);
@@ -60,11 +62,21 @@ class InstallCommand extends Command
             return;
         }
 
-        // 4. Create Vite Project
+        if ($isReactNative) {
+            $this->info("📱 Creating Expo React Native project...");
+            Process::path(resource_path())->timeout(600)->run("npx create-expo-app@latest {$folderName} --yes");
+
+            $this->info("📦 Installing mobile dependencies...");
+            Process::path($frontendPath)->run("npx expo install axios @react-navigation/native @react-navigation/native-stack react-native-screens react-native-safe-area-context");
+
+            $this->info('🎉 React Native Setup Completed!');
+            $this->line("\nRun: <comment>cd resources/{$folderName} && npx expo start</comment>");
+            return;
+        }
+
         $this->info("🛠 Creating Vite project...");
         Process::path(resource_path())->run("npm create vite@latest {$folderName} -- --template {$framework} --yes");
 
-        // 5. Build Dependencies List
         $packages = ['axios'];
         if (in_array('Tailwind CSS', $addons)) $packages[] = '@tailwindcss/vite tailwindcss';
         if (in_array('Lucide Icons', $addons)) $packages[] = $isReact ? 'lucide-react' : 'lucide-vue-next';
@@ -118,11 +130,11 @@ class InstallCommand extends Command
 
         $content = "{$importString}
 
-export default defineConfig({
-  plugins: [
-    {$pluginString}
-  ],
-})";
+                export default defineConfig({
+                  plugins: [
+                    {$pluginString}
+                  ],
+                })";
 
         $ext = File::exists("{$path}/vite.config.ts") ? 'ts' : 'js';
         File::put("{$path}/vite.config.{$ext}", $content);

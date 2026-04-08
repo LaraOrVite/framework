@@ -7,9 +7,8 @@ use LaraOrVite\Framework\Tests\TestCase;
 
 class InstallCommandTest extends TestCase
 {
-    // ඔබගේ Command එකේ ඇති අනුපිළිවෙළටම අලුත් ලැයිස්තුව
     protected array $frameworks = [
-        'react', 'react-ts', 'vue', 'vue-ts', 'svelte', 'svelte-ts', 'vanilla', 'vanilla-ts'
+        'react', 'react-ts', 'vue', 'vue-ts', 'react-native', 'svelte', 'svelte-ts', 'vanilla', 'vanilla-ts'
     ];
 
     protected function setUp(): void
@@ -61,5 +60,19 @@ class InstallCommandTest extends TestCase
             ->assertExitCode(0);
 
         $this->assertTrue(File::exists($path));
+    }
+
+    /** @test */
+    public function test_it_creates_react_native_project_without_vite_config()
+    {
+        $folderName = 'mobile-app';
+        $path = resource_path($folderName);
+
+        $this->artisan("frontend:setup {$folderName}")
+            ->expectsChoice('Which frontend framework?', 'react-native', $this->frameworks)
+            ->assertExitCode(0);
+
+        $this->assertTrue(File::exists($path));
+        $this->assertFalse(File::exists("{$path}/vite.config.js"));
     }
 }
